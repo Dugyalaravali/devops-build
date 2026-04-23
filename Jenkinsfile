@@ -3,53 +3,59 @@ pipeline {
 
     environment {
         DOCKERHUB = "dugyalaravali28"
-        IMAGE = "my-react-app-dev"
-        // Replace with your actual deployment server private IP or Public DNS
-        DEPLOY_SERVER = "13.214.212.171" 
+        DEV_IMAGE = "my-react-app-dev"
+        PROD_IMAGE = "my-react-app-prod" // Ensure this is created as PRIVATE in Docker Hub
+        DEPLOY_SERVER = "13.214.212.171"
     }
 
     stages {
-        // Redundant checkout removed as Declarative Pipeline does this automatically
-        
-        stage('Build Image') {
+        stage('Build & Push Dev') {
             steps {
-                sh 'docker build -t $DOCKERHUB/$IMAGE:dev .'
-            }
-        }
-
-        stage('Login to DockerHub') {
-            steps {
+                // Build the image using the Dev name
+                sh 'docker build -t $DOCKERHUB/$DEV_IMAGE:dev .'
+                
                 withCredentials([usernamePassword(
                     credentialsId: 'docker-creds',
                     usernameVariable: 'USER',
                     passwordVariable: 'PASS'
                 )]) {
                     sh 'echo $PASS | docker login -u $USER --password-stdin'
+                    sh 'docker push $DOCKERHUB/$DEV_IMAGE:dev'
                 }
             }
         }
 
-        stage('Push Image') {
+        stage('Promote to Prod Repo') {
             steps {
-                sh 'docker push $DOCKERHUB/$IMAGE:dev'
+                // Retag the dev image to the prod repository name
+                sh """
+                    docker tag $DOCKERHUB/$DEV_IMAGE:dev $DOCKERHUB/$PROD_IMAGE:latest
+                    docker push $DOCKERHUB/$PROD_IMAGE:latest
+                """
             }
         }
 
-        stage('Deploy to Prod') {
+        stage('Deploy to Prod Server') {
             steps {
                 sshagent(['deploy-server-key']) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no ubuntu@${DEPLOY_SERVER} << 'EOF'
-                            # Pull the new image
-                            docker pull ${DOCKERHUB}/${IMAGE}:dev
-
-                            # Stop and remove old container if it exists
-                            docker rm -f myapp || true
-
-                            # Run the new container
-                            docker run -d --name myapp -p 80:80 ${DOCKERHUB}/${IMAGE}:dev
+                    // We need credentials here because the Prod repo is PRIVATE
+                    withCredentials([usernamePassword(
+                        credentialsId: 'docker-creds', 
+                        usernameVariable: 'USER', 
+                        passwordVariable: 'PASS'
+                    )]) {
+                        sh """
+                            ssh -o StrictHostKeyChecking=no ubuntu@${DEPLOY_SERVER} << EOF
+                                # Log in on the remote server to access the PRIVATE repo
+                                echo ${PASS} | docker login -u ${USER} --password-stdin
+                                
+                                # Pull and run the Prod image
+                                docker pull ${DOCKERHUB}/${PROD_IMAGE}:latest
+                                docker rm -f myapp-prod || true
+                                docker run -d --name myapp-prod -p 80:80 ${DOCKERHUB}/${PROD_IMAGE}:latest
 EOF
-                    """
+                        """
+                    }
                 }
             }
         }
