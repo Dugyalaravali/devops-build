@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         DOCKERHUB = "dugyalaravali28"
-        IMAGE = "my-react-app"
+        IMAGE = "my-react-app-dev"
         // Replace with your actual deployment server private IP or Public DNS
         DEPLOY_SERVER = "13.214.212.171" 
     }
