@@ -1,7 +1,7 @@
 #!/bin/bash
 
 IMAGE_NAME=my-react-app
-DOCKERHUB_USER=yourusername
+DOCKERHUB_USER=dugyalaravali28
 TAG=dev
 
 docker pull $DOCKERHUB_USER/$IMAGE_NAME:$TAG
