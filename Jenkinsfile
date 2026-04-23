@@ -1,58 +1,47 @@
 pipeline {
     agent any
-    
+
     environment {
-        DOCKER_HUB_USER = 'dugyalaravali28'
-        DEV_REPO = "${dugyalaravali28}/dev-repo"
-        PROD_REPO = "${dugyalaravali28}/prod-repo"
+        DOCKERHUB = "dugyalaravali28"
+        IMAGE = "my-react-app"
     }
 
     stages {
+
+        stage('Checkout') {
+            steps {
+                git branch: 'dev', url: 'https://github.com/Dugyalaravali/devops-build.git'
+            }
+        }
+
         stage('Build Image') {
             steps {
-                script {
-                    // Build with a temporary tag
-                    sh "chmod +x build.sh"
-                    sh "./build.sh web-app latest"
+                sh 'docker build -t $DOCKERHUB/$IMAGE:dev .'
+            }
+        }
+
+        stage('Login to DockerHub') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'docker-creds',
+                    usernameVariable: 'USER',
+                    passwordVariable: 'PASS'
+                )]) {
+                    sh 'echo $PASS | docker login -u $USER --password-stdin'
                 }
             }
         }
 
-        stage('Push to Docker Hub') {
+        stage('Push Image') {
             steps {
-                script {
-                    docker.withRegistry('', 'docker-hub-credentials-id') {
-                        if (env.BRANCH_NAME == 'dev') {
-                            sh "docker tag web-app latest ${DEV_REPO}:latest"
-                            sh "docker push ${DEV_REPO}:latest"
-                        } 
-                        else if (env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'master') {
-                            sh "docker tag web-app latest ${PROD_REPO}:latest"
-                            sh "docker push ${PROD_REPO}:latest"
-                        }
-                    }
-                }
+                sh 'docker push $DOCKERHUB/$IMAGE:dev'
             }
         }
 
-        stage('Deploy to AWS') {
-            // Only deploy if on master/main branch
-            when {
-                branch 'main'
-            }
+        stage('Deploy') {
             steps {
-                sshagent(['aws-ec2-ssh-key-id']) {
-                    sh "chmod +x deploy.sh"
-                    // Connect to EC2 and run the deploy script
-                    sh "ssh -o StrictHostKeyChecking=no ubuntu@your-ec2-ip 'bash -s' < deploy.sh ${PROD_REPO}:latest"
-                }
+                sh './deploy.sh'
             }
-        }
-    }
-    
-    post {
-        always {
-            cleanWs()
         }
     }
 }

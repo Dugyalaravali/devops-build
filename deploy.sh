@@ -1,9 +1,12 @@
 #!/bin/bash
-# Basic deployment via Docker (assuming Docker is installed on the target server)
-IMAGE=$1
-CONTAINER_NAME="web-app"
 
-docker pull $IMAGE
-docker stop $CONTAINER_NAME || true
-docker rm $CONTAINER_NAME || true
-docker run -d --name $CONTAINER_NAME -p 80:80 $IMAGE
+IMAGE_NAME=my-react-app
+DOCKERHUB_USER=yourusername
+TAG=dev
+
+docker pull $DOCKERHUB_USER/$IMAGE_NAME:$TAG
+
+docker stop myapp || true
+docker rm myapp || true
+
+docker run -d -p 80:80 --name myapp $DOCKERHUB_USER/$IMAGE_NAME:$TAG
