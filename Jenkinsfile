@@ -51,8 +51,8 @@ pipeline {
                                 
                                 # Pull and run the Prod image
                                 docker pull ${DOCKERHUB}/${PROD_IMAGE}:latest
-                                docker rm -f myapp-prod || true
-                                docker run -d --name myapp-prod -p 80:80 ${DOCKERHUB}/${PROD_IMAGE}:latest
+                                docker rm -f my-react-app-prod || true
+                                docker run -d --name my-react-app-prod -p 80:80 ${DOCKERHUB}/${PROD_IMAGE}:latest
 EOF
                         """
                     }
